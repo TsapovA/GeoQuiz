@@ -14,6 +14,8 @@ class QuizViewModel: ViewModel() {
         Question(R.string.question_americas , true),
         Question(R.string.question_asia, true))
 
+    val questionCheatFlags = BooleanArray(questionBank.size)
+
     var currentIndex = 0
     var isCheater = false
 

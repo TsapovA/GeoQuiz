@@ -14,10 +14,22 @@ class QuizViewModel: ViewModel() {
         Question(R.string.question_americas , true),
         Question(R.string.question_asia, true))
 
-    val questionCheatFlags = BooleanArray(questionBank.size)
+    private var usedNumberOfCheats = 0
+    private val questionCheatFlags = BooleanArray(questionBank.size)
+
+    fun processUserUseCheat() {
+        if (isUserUsedCheatForTheCurrentQuestion()) {
+            return
+        }
+        questionCheatFlags[currentIndex] = true
+        ++usedNumberOfCheats
+    }
+
+    fun isUserCanCheat() = usedNumberOfCheats < 3
+
+    fun isUserUsedCheatForTheCurrentQuestion() = questionCheatFlags[currentIndex]
 
     var currentIndex = 0
-    var isCheater = false
 
     val currentQuestionAnswer: Boolean
         get() = questionBank[currentIndex].answer

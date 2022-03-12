@@ -1,7 +1,10 @@
 package ru.andyup.geoquiz
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.ActivityOptions
 import android.content.Intent
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.PersistableBundle
@@ -24,9 +27,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var questionTextView: TextView
 
     private val quizViewModel: QuizViewModel by lazy {
-        ViewModelProviders.of(this).get(QuizViewModel ::class.java)
+        ViewModelProviders.of(this).get(QuizViewModel::class.java)
     }
 
+    @SuppressLint("RestrictedApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d(TAG, "onCreate called")
         super.onCreate(savedInstanceState)
@@ -46,11 +50,13 @@ class MainActivity : AppCompatActivity() {
         }
         trueButton.setOnClickListener {
             checkAnswer(true)
-            disableButtons(listOf(trueButton, falseButton))
+            disableBtns(listOf(trueButton, falseButton))
+            disableCheatBtn(cheatButton)
         }
         falseButton.setOnClickListener {
             checkAnswer(false)
-            disableButtons(listOf(trueButton, falseButton))
+            disableBtns(listOf(trueButton, falseButton))
+            disableCheatBtn(cheatButton)
         }
 
         nextButton.setOnClickListener {
@@ -58,12 +64,30 @@ class MainActivity : AppCompatActivity() {
             updateQuestion()
             enableButtons(listOf(trueButton, falseButton))
         }
-        cheatButton.setOnClickListener {
-            val answerIsTrue = quizViewModel.currentQuestionAnswer
-            val intent = CheatActivity.newIntent(this@MainActivity, answerIsTrue)
-            startActivityForResult(intent, REQUEST_CODE_CHEAT)
+
+        cheatButton.setOnClickListener {view ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val answerIsTrue = quizViewModel.currentQuestionAnswer
+                val intent = CheatActivity.newIntent(this@MainActivity, answerIsTrue)
+                val options =
+                    ActivityOptions.makeClipRevealAnimation(view, 0, 0, view.width, view.height)
+
+
+                startActivityForResult(intent, REQUEST_CODE_CHEAT, options.toBundle())
+            } else {
+                startActivityForResult(intent, REQUEST_CODE_CHEAT)
+            }
         }
         updateQuestion()
+    }
+
+    private fun disableCheatBtn(cheatButton: Button) {
+        if (quizViewModel.isUserCanCheat()) {
+            return
+        }
+        if (cheatButton.isEnabled) {
+            cheatButton.isEnabled = false
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -76,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_CHEAT) {
             val isCheater = data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false
             if (isCheater) {
-                quizViewModel.questionCheatFlags[quizViewModel.currentIndex] = true
+                quizViewModel.processUserUseCheat()
             }
         }
     }
@@ -115,13 +139,13 @@ class MainActivity : AppCompatActivity() {
     private fun checkAnswer(userAnswer: Boolean) {
         val correctAnswer = quizViewModel.currentQuestionAnswer
         val messageResId = when {
-            quizViewModel.questionCheatFlags[quizViewModel.currentIndex] -> R.string.judgment_toast
+            quizViewModel.isUserUsedCheatForTheCurrentQuestion() -> R.string.judgment_toast
             userAnswer == correctAnswer -> R.string.correct_toast
             else -> R.string.incorrect_toast
         }
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show()
     }
-    private fun disableButtons(btns: List<Button>) {
+    private fun disableBtns(btns: List<Button>) {
         for (btn in btns) {
             if (btn.isEnabled) {
                 btn.isEnabled = false
